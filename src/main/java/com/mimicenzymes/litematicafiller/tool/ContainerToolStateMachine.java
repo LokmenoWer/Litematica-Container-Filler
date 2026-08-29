@@ -8,6 +8,7 @@ import com.mimicenzymes.litematicafiller.core.InteractionTargeting;
 import com.mimicenzymes.litematicafiller.core.ItemMatcher;
 import com.mimicenzymes.litematicafiller.core.RealContainerCache;
 import com.mimicenzymes.litematicafiller.filter.ContainerBlockFilter;
+import com.mimicenzymes.litematicafiller.dependency.CarpetUasExtractor;
 import com.mimicenzymes.litematicafiller.dependency.DependencyChecker;
 import com.mimicenzymes.litematicafiller.dependency.DummyExtractor;
 import com.mimicenzymes.litematicafiller.dependency.IShulkerExtractor;
@@ -95,6 +96,7 @@ public class ContainerToolStateMachine {
     private boolean currentOperationContinuous = false;
 
     private final IShulkerExtractor shulkerExtractor;
+    private final CarpetUasExtractor carpetUasExtractor = CarpetUasExtractor.getInstance();
 
     private static int uiSlot(AbstractContainerMenu handler, Slot slot) {
         return handler == null || slot == null ? -1 : handler.slots.indexOf(slot);
@@ -238,6 +240,8 @@ public class ContainerToolStateMachine {
             resetContinuousTriggerState();
             return;
         }
+
+        carpetUasExtractor.tick();
 
         tickContinuousToolTrigger(client);
         if (continuousSameTargetCooldownTicks > 0) {
@@ -830,9 +834,19 @@ public class ContainerToolStateMachine {
 
     private void openPackingShulkerOrTimeout(Minecraft client) {
         if (!openedByTool) {
+            QuickShulkerOpenMode mode = getQuickShulkerOpenMode();
+            if (mode == QuickShulkerOpenMode.CARPET_UAS && carpetUasExtractor.isActive()) {
+                // Previous carpet session is still restoring its box; retry next tick.
+                return;
+            }
             openedByTool = true;
             uiWaitTicks = 0;
-            if (getQuickShulkerOpenMode() == QuickShulkerOpenMode.SIMULATE_CLICK) {
+            if (mode == QuickShulkerOpenMode.CARPET_UAS) {
+                if (!carpetUasExtractor.requestOpenShulker(packingShulkerSlot)
+                        && !shulkerExtractor.requestOpenShulker(packingShulkerSlot)) {
+                    failPackingSupport(client);
+                }
+            } else if (mode == QuickShulkerOpenMode.SIMULATE_CLICK) {
                 directRightClickPlayerSlot(client, packingShulkerSlot);
             } else if (!shulkerExtractor.requestOpenShulker(packingShulkerSlot)) {
                 failPackingSupport(client);
@@ -852,9 +866,20 @@ public class ContainerToolStateMachine {
             syncPendingShulkers.remove(syncActiveShulkerSlot);
         }
 
+        QuickShulkerOpenMode mode = getQuickShulkerOpenMode();
+        if (mode == QuickShulkerOpenMode.CARPET_UAS && carpetUasExtractor.isActive()) {
+            // Previous carpet session is still restoring its box; retry next tick.
+            return;
+        }
+
         openedByTool = true;
         uiWaitTicks = 0;
-        if (getQuickShulkerOpenMode() == QuickShulkerOpenMode.SIMULATE_CLICK) {
+        if (mode == QuickShulkerOpenMode.CARPET_UAS) {
+            if (!carpetUasExtractor.requestOpenShulker(syncActiveShulkerSlot)
+                    && !shulkerExtractor.requestOpenShulker(syncActiveShulkerSlot)) {
+                fail(client, "litematica_container_filler.message.tool_missing_items_for_sync");
+            }
+        } else if (mode == QuickShulkerOpenMode.SIMULATE_CLICK) {
             directRightClickPlayerSlot(client, syncActiveShulkerSlot);
         } else if (!shulkerExtractor.requestOpenShulker(syncActiveShulkerSlot)) {
             fail(client, "litematica_container_filler.message.tool_missing_items_for_sync");
@@ -1431,7 +1456,12 @@ public class ContainerToolStateMachine {
 
     private boolean canOpenShulkerUi() {
         if (!Configs.ENABLE_QS_EXTRACTION.getBooleanValue()) return false;
-        return getQuickShulkerOpenMode() == QuickShulkerOpenMode.SIMULATE_CLICK || DependencyChecker.HAS_QUICK_SHULKER;
+        QuickShulkerOpenMode mode = getQuickShulkerOpenMode();
+        if (mode == QuickShulkerOpenMode.SIMULATE_CLICK) return true;
+        if (mode == QuickShulkerOpenMode.CARPET_UAS) {
+            return CarpetUasExtractor.isAvailable() || DependencyChecker.HAS_QUICK_SHULKER;
+        }
+        return DependencyChecker.HAS_QUICK_SHULKER;
     }
 
     private boolean tryStartSyncTakeItOutFetch(Minecraft client, List<ItemStack> needed) {

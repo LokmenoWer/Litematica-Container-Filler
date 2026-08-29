@@ -5,7 +5,8 @@ import fi.dy.masa.malilib.util.StringUtils;
 
 public enum QuickShulkerOpenMode implements IConfigOptionListEntry {
     INVOKE("invoke", "litematica_container_filler.config.option.quickShulkerOpenMode.invoke"),
-    SIMULATE_CLICK("simulate_click", "litematica_container_filler.config.option.quickShulkerOpenMode.simulateClick");
+    SIMULATE_CLICK("simulate_click", "litematica_container_filler.config.option.quickShulkerOpenMode.simulateClick"),
+    CARPET_UAS("carpet_uas", "litematica_container_filler.config.option.quickShulkerOpenMode.carpetUas");
 
     private final String configString;
     private final String translationKey;

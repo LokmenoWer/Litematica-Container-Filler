@@ -3,6 +3,7 @@ package com.mimicenzymes.litematicafiller;
 import com.mimicenzymes.litematicafiller.config.Configs;
 import com.mimicenzymes.litematicafiller.gui.GuiConfigs;
 import com.mimicenzymes.litematicafiller.core.*;
+import com.mimicenzymes.litematicafiller.dependency.CarpetUasTransport;
 import com.mimicenzymes.litematicafiller.network.ClickPacketRateLimiter;
 import com.mimicenzymes.litematicafiller.network.ServuxSyncHandler;
 import com.mimicenzymes.litematicafiller.network.TakeItOutCompat;
@@ -34,6 +35,7 @@ public class LitematicafillerClient implements ClientModInitializer {
     public void onInitializeClient() {
         ServuxSyncHandler.registerPayloads();
         TakeItOutCompat.registerPayload();
+        CarpetUasTransport.registerLocalOpenPayload();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (!isGuiAutoRegistered) {

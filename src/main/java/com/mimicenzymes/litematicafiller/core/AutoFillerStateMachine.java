@@ -2,6 +2,7 @@ package com.mimicenzymes.litematicafiller.core;
 
 import com.mimicenzymes.litematicafiller.config.Configs;
 import com.mimicenzymes.litematicafiller.config.QuickShulkerOpenMode;
+import com.mimicenzymes.litematicafiller.dependency.CarpetUasExtractor;
 import com.mimicenzymes.litematicafiller.dependency.DependencyChecker;
 import com.mimicenzymes.litematicafiller.dependency.DummyExtractor;
 import com.mimicenzymes.litematicafiller.dependency.IShulkerExtractor;
@@ -136,6 +137,7 @@ public class AutoFillerStateMachine {
     private int cursorStuckAttempts = 0;
 
     private final IShulkerExtractor shulkerExtractor;
+    private final CarpetUasExtractor carpetUasExtractor = CarpetUasExtractor.getInstance();
 
     private record TakeItOutRequest(int shulkerSlot, int innerSlot, ItemStack requestedStack, int countBefore) {
     }
@@ -791,6 +793,7 @@ public class AutoFillerStateMachine {
 
         tickCounter++;
         tickTransientMarkers();
+        carpetUasExtractor.tick();
         if (isCreativeFillEnabled(client)) {
             clearMaterialFailuresForCreativeFill();
         }
@@ -907,6 +910,7 @@ public class AutoFillerStateMachine {
                 case STASHING:
                     if (!inGui) {
                         if (!guiOpenedForPhase) {
+                            carpetUasExtractor.setProtectedSlot(stashItemSlot);
                             openShulkerBox(client, stashShulkerSlot);
                             guiOpenedForPhase = true;
                         } else if (passiveScreenOpen) {
@@ -1348,6 +1352,18 @@ public class AutoFillerStateMachine {
     }
 
     private void openQueuedShulker(Minecraft client, int slot) {
+        if (getQuickShulkerOpenMode() == QuickShulkerOpenMode.CARPET_UAS) {
+            if (carpetUasExtractor.requestOpenShulker(slot)) {
+                return;
+            }
+            if (carpetUasExtractor.isActive()) {
+                // A previous carpet session is still swapping its box back;
+                // retry on the next tick instead of stealing the open.
+                actionQueue.addFirst(() -> openQueuedShulker(client, slot));
+                yieldTick = true;
+                return;
+            }
+        }
         if (getQuickShulkerOpenMode() == QuickShulkerOpenMode.SIMULATE_CLICK) {
             simulateOpenShulkerClick(client, slot);
         } else {
@@ -1373,7 +1389,12 @@ public class AutoFillerStateMachine {
 
     private boolean canOpenShulkerUi() {
         if (!Configs.ENABLE_QS_EXTRACTION.getBooleanValue()) return false;
-        return getQuickShulkerOpenMode() == QuickShulkerOpenMode.SIMULATE_CLICK || DependencyChecker.HAS_QUICK_SHULKER;
+        QuickShulkerOpenMode mode = getQuickShulkerOpenMode();
+        if (mode == QuickShulkerOpenMode.SIMULATE_CLICK) return true;
+        if (mode == QuickShulkerOpenMode.CARPET_UAS) {
+            return CarpetUasExtractor.isAvailable() || DependencyChecker.HAS_QUICK_SHULKER;
+        }
+        return DependencyChecker.HAS_QUICK_SHULKER;
     }
 
     private boolean canUseTakeItOut() {
