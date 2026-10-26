@@ -17,7 +17,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -203,7 +203,7 @@ public class GuiGlobalMaterialReplacementPicker extends GuiBase {
 
     @Override
     public boolean onKeyTyped(KeyEvent input) {
-        if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+        if (input.key() == InputConstants.KEY_ESCAPE) {
             this.closeToParent();
             return true;
         }
