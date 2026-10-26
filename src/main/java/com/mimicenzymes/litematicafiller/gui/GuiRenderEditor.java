@@ -21,7 +21,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import org.joml.Matrix3x2fStack;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -359,7 +359,7 @@ public class GuiRenderEditor extends GuiBase {
         ColorInputBinding focused = getFocusedColorInput();
         if (focused != null) {
             int key = KeyEvent.key();
-            if (key == GLFW.GLFW_KEY_ESCAPE || key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+            if (key == InputConstants.KEY_ESCAPE || key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER) {
                 finishColorInput(focused, true);
                 return true;
             }
